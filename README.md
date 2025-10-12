@@ -1,2 +1,2 @@
 # tickets
-### Tickets bot for Night Sky Gaming
+### Tickets bot for Andromeda Gaming
