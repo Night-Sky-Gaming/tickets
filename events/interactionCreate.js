@@ -1,4 +1,4 @@
-const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { staffTicketsLogChannelName } = require('../config.json');
 
 module.exports = {
@@ -75,6 +75,8 @@ async function handleButtonInteraction(interaction) {
             components: [row],
             flags: MessageFlags.Ephemeral
         });
+    } else if (interaction.customId === 'close_ticket') {
+        await handleCloseTicket(interaction);
     }
 }
 
@@ -190,10 +192,20 @@ async function handleModalSubmit(interaction) {
                 .setFooter({ text: 'Night Sky Gaming Support' })
                 .setTimestamp();
 
+            // Create close button
+            const closeButton = new ButtonBuilder()
+                .setCustomId('close_ticket')
+                .setLabel('Close Ticket')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🔒');
+
+            const buttonRow = new ActionRowBuilder().addComponents(closeButton);
+
             // Send the embed to the ticket channel and mention the user
             await ticketChannel.send({
                 content: `${user} Your ticket has been created!`,
-                embeds: [ticketEmbed]
+                embeds: [ticketEmbed],
+                components: [buttonRow]
             });
 
             // Log ticket creation to staff-tickets channel
@@ -209,13 +221,17 @@ async function handleModalSubmit(interaction) {
                         { name: '👤 User', value: `${user.tag} (${user.id})`, inline: true },
                         { name: `${categoryEmoji} Category`, value: categoryDisplay, inline: true },
                         { name: '📝 Subject', value: subject, inline: false },
-                        { name: '🔗 Channel', value: `${ticketChannel}`, inline: false }
+                        { name: '🔗 Channel', value: `${ticketChannel}`, inline: false },
+                        { name: '📊 Status', value: '🟢 Open', inline: true }
                     )
                     .setColor(0x5865F2)
                     .setFooter({ text: 'Ticket System Log' })
                     .setTimestamp();
 
-                await staffTicketsLogChannel.send({ embeds: [logEmbed] });
+                const logMessage = await staffTicketsLogChannel.send({ embeds: [logEmbed] });
+                
+                // Store the log message ID in the channel topic for later retrieval
+                await ticketChannel.setTopic(`Log: ${logMessage.id} | User: ${user.id} | Category: ${category}`);
             } else {
                 console.warn(`[WARNING] Channel "${staffTicketsLogChannelName}" not found for logging`);
             }
@@ -231,5 +247,110 @@ async function handleModalSubmit(interaction) {
                 content: '❌ There was an error creating your ticket. Please try again later.'
             });
         }
+    }
+}
+
+// Handle ticket closing
+async function handleCloseTicket(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    try {
+        const channel = interaction.channel;
+        
+        // Check if this is a ticket channel
+        if (!channel.name.startsWith('ticket-')) {
+            await interaction.editReply({
+                content: '❌ This command can only be used in ticket channels.'
+            });
+            return;
+        }
+
+        // Parse the channel topic to get the log message ID
+        const topic = channel.topic;
+        if (!topic) {
+            await interaction.editReply({
+                content: '❌ Unable to find ticket information.'
+            });
+            return;
+        }
+
+        // Extract log message ID and category from topic
+        const logMatch = topic.match(/Log: (\d+)/);
+        const categoryMatch = topic.match(/Category: (\w+)/);
+        
+        if (!logMatch) {
+            await interaction.editReply({
+                content: '❌ Unable to find ticket log message.'
+            });
+            return;
+        }
+
+        const logMessageId = logMatch[1];
+        const category = categoryMatch ? categoryMatch[1] : 'unknown';
+
+        // Get category emoji
+        const categoryEmojis = {
+            'onboarding': '👋',
+            'moderation': '🛡️',
+            'tournaments': '🏆',
+            'events': '🎉'
+        };
+        const categoryEmoji = categoryEmojis[category] || '🎫';
+        const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1);
+
+        // Find the staff-tickets log channel
+        const staffTicketsLogChannel = interaction.guild.channels.cache.find(
+            ch => ch.name === staffTicketsLogChannelName && ch.type === ChannelType.GuildText
+        );
+
+        if (staffTicketsLogChannel) {
+            try {
+                // Fetch the original log message
+                const logMessage = await staffTicketsLogChannel.messages.fetch(logMessageId);
+                
+                if (logMessage && logMessage.embeds.length > 0) {
+                    const originalEmbed = logMessage.embeds[0];
+                    
+                    // Create updated embed with closed status
+                    const updatedEmbed = EmbedBuilder.from(originalEmbed)
+                        .setTitle('📋 Ticket Closed')
+                        .setColor(0xFF0000)
+                        .setFields(
+                            { name: '👤 User', value: originalEmbed.fields[0].value, inline: true },
+                            { name: `${categoryEmoji} Category`, value: categoryDisplay, inline: true },
+                            { name: '📝 Subject', value: originalEmbed.fields[2].value, inline: false },
+                            { name: '🔗 Channel', value: originalEmbed.fields[3].value, inline: false },
+                            { name: '📊 Status', value: '🔴 Closed', inline: true },
+                            { name: '🔒 Closed by', value: `${interaction.user.tag}`, inline: true },
+                            { name: '⏰ Closed at', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+                        );
+                    
+                    // Edit the log message
+                    await logMessage.edit({ embeds: [updatedEmbed] });
+                }
+            } catch (error) {
+                console.error('Error updating log message:', error);
+            }
+        }
+
+        // Confirm closure to the user
+        await interaction.editReply({
+            content: '✅ This ticket will be deleted in 5 seconds...'
+        });
+
+        // Delete the channel after a short delay
+        setTimeout(async () => {
+            try {
+                await channel.delete();
+            } catch (error) {
+                console.error('Error deleting ticket channel:', error);
+            }
+        }, 5000);
+
+    } catch (error) {
+        console.error('Error closing ticket:', error);
+        await interaction.editReply({
+            content: '❌ There was an error closing this ticket.'
+        });
     }
 }
