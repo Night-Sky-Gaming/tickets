@@ -57,15 +57,20 @@ async function handleButtonInteraction(interaction) {
                     .setValue('moderation')
                     .setEmoji('🛡️'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('Tournaments')
-                    .setDescription('Tournament-related inquiries')
-                    .setValue('tournaments')
+                    .setLabel('Competitive')
+                    .setDescription('Competitive-related inquiries')
+                    .setValue('competitive')
                     .setEmoji('🏆'),
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('Events')
-                    .setDescription('Event-related questions')
-                    .setValue('events')
-                    .setEmoji('🎉')
+                    .setLabel('PR')
+                    .setDescription('Public Relations matters')
+                    .setValue('pr')
+                    .setEmoji('📢'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Development')
+                    .setDescription('Development and technical issues')
+                    .setValue('development')
+                    .setEmoji('💻')
             );
 
         const row = new ActionRowBuilder().addComponents(categorySelect);
@@ -135,10 +140,20 @@ async function handleModalSubmit(interaction) {
             const categoryEmojis = {
                 'onboarding': '👋',
                 'moderation': '🛡️',
-                'tournaments': '🏆',
-                'events': '🎉'
+                'competitive': '🏆',
+                'pr': '📢',
+                'development': '💻'
             };
             const categoryEmoji = categoryEmojis[category] || '🎫';
+
+            // Role IDs to tag based on category
+            const categoryRoles = {
+                'onboarding': '1434216081177972848',
+                'moderation': '1434216186471645326',
+                'competitive': '1434216253140107346',
+                'pr': '1434216149133955192',
+                'development': '1434216347159756872'
+            };
 
             // Get the values from the modal
             const subject = interaction.fields.getTextInputValue('ticket_subject');
@@ -201,9 +216,12 @@ async function handleModalSubmit(interaction) {
 
             const buttonRow = new ActionRowBuilder().addComponents(closeButton);
 
-            // Send the embed to the ticket channel and mention the user
+            // Send the embed to the ticket channel and mention the user and relevant role
+            const roleId = categoryRoles[category];
+            const roleMention = roleId ? `<@&${roleId}>` : '';
+            
             await ticketChannel.send({
-                content: `${user} Your ticket has been created!`,
+                content: `${user} Your ticket has been created! ${roleMention}`,
                 embeds: [ticketEmbed],
                 components: [buttonRow]
             });
@@ -292,8 +310,9 @@ async function handleCloseTicket(interaction) {
         const categoryEmojis = {
             'onboarding': '👋',
             'moderation': '🛡️',
-            'tournaments': '🏆',
-            'events': '🎉'
+            'competitive': '🏆',
+            'pr': '📢',
+            'development': '💻'
         };
         const categoryEmoji = categoryEmojis[category] || '🎫';
         const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1);
