@@ -26,7 +26,7 @@ module.exports = {
 					.setTitle('🎫 Ticket System')
 					.setDescription('Click the button below to create a new support ticket!')
 					.setColor(0x5865F2)
-					.setFooter({ text: 'Night Sky Gaming Support' })
+					.setFooter({ text: 'Andromeda Gaming Support' })
 					.setTimestamp();
 
 				// Create button
