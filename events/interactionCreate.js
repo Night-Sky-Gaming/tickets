@@ -204,7 +204,7 @@ async function handleModalSubmit(interaction) {
                     { name: '📄 Description', value: content, inline: false }
                 )
                 .setColor(0x00FF00)
-                .setFooter({ text: 'Night Sky Gaming Support' })
+                .setFooter({ text: 'Andromeda Gaming Support' })
                 .setTimestamp();
 
             // Create close button
