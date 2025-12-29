@@ -70,7 +70,12 @@ async function handleButtonInteraction(interaction) {
                     .setLabel('Development')
                     .setDescription('Development and technical issues')
                     .setValue('development')
-                    .setEmoji('💻')
+                    .setEmoji('💻'),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Events')
+                    .setDescription('Select this if you\'re interested in becoming an Event Host!')
+                    .setValue('events')
+                    .setEmoji('🎉')
             );
 
         const row = new ActionRowBuilder().addComponents(categorySelect);
@@ -142,7 +147,8 @@ async function handleModalSubmit(interaction) {
                 'moderation': '🛡️',
                 'competitive': '🏆',
                 'pr': '📢',
-                'development': '💻'
+                'development': '💻',
+                'events': '🎉'
             };
             const categoryEmoji = categoryEmojis[category] || '🎫';
 
@@ -152,7 +158,8 @@ async function handleModalSubmit(interaction) {
                 'moderation': '1434216186471645326',
                 'competitive': '1434216253140107346',
                 'pr': '1434216149133955192',
-                'development': '1434216347159756872'
+                'development': '1434216347159756872',
+                'events': 'ROLE_ID_HERE'
             };
 
             // Get the values from the modal
@@ -312,7 +319,8 @@ async function handleCloseTicket(interaction) {
             'moderation': '🛡️',
             'competitive': '🏆',
             'pr': '📢',
-            'development': '💻'
+            'development': '💻',
+            'events': '🎉'
         };
         const categoryEmoji = categoryEmojis[category] || '🎫';
         const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1);
