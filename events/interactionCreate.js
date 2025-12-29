@@ -159,7 +159,7 @@ async function handleModalSubmit(interaction) {
                 'competitive': '1434216253140107346',
                 'pr': '1434216149133955192',
                 'development': '1434216347159756872',
-                'events': 'ROLE_ID_HERE'
+                'events': '1430039289953128498'
             };
 
             // Get the values from the modal
