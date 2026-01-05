@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags, AttachmentBuilder } = require('discord.js');
 const { staffTicketsLogChannelName } = require('../../config.json');
 
 module.exports = {
@@ -75,6 +75,63 @@ module.exports = {
 
             if (staffTicketsLogChannel) {
                 try {
+                    // Fetch all messages from the ticket channel for transcript
+                    let allMessages = [];
+                    let lastId;
+
+                    // Fetch messages in batches of 100 (Discord API limit)
+                    while (true) {
+                        const options = { limit: 100 };
+                        if (lastId) {
+                            options.before = lastId;
+                        }
+
+                        const messages = await channel.messages.fetch(options);
+                        allMessages.push(...messages.values());
+                        
+                        if (messages.size !== 100) {
+                            break;
+                        }
+                        
+                        lastId = messages.last().id;
+                    }
+
+                    // Sort messages by timestamp (oldest first)
+                    allMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+                    // Create transcript text
+                    let transcript = `Ticket Transcript - ${channel.name}\n`;
+                    transcript += `Category: ${categoryDisplay}\n`;
+                    transcript += `Closed by: ${interaction.user.tag} (${interaction.user.id})\n`;
+                    transcript += `Closed at: ${new Date().toUTCString()}\n`;
+                    transcript += `Total Messages: ${allMessages.length}\n`;
+                    transcript += `${'='.repeat(80)}\n\n`;
+
+                    for (const msg of allMessages) {
+                        const timestamp = new Date(msg.createdTimestamp).toUTCString();
+                        transcript += `[${timestamp}] ${msg.author.tag} (${msg.author.id}):\n`;
+                        
+                        if (msg.content) {
+                            transcript += `${msg.content}\n`;
+                        }
+                        
+                        if (msg.embeds.length > 0) {
+                            transcript += `[Embed: ${msg.embeds.length} embed(s)]\n`;
+                        }
+                        
+                        if (msg.attachments.size > 0) {
+                            transcript += `[Attachments: ${Array.from(msg.attachments.values()).map(a => a.url).join(', ')}]\n`;
+                        }
+                        
+                        transcript += '\n';
+                    }
+
+                    // Create attachment
+                    const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+                    const attachment = new AttachmentBuilder(transcriptBuffer, {
+                        name: `transcript-${channel.name}-${Date.now()}.txt`
+                    });
+
                     // Fetch the original log message
                     const logMessage = await staffTicketsLogChannel.messages.fetch(logMessageId);
                     
@@ -95,11 +152,15 @@ module.exports = {
                                 { name: '⏰ Closed at', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
                             );
                         
-                        // Edit the log message
+                        // Edit the log message and add transcript
                         await logMessage.edit({ embeds: [updatedEmbed] });
+                        await staffTicketsLogChannel.send({
+                            content: `📄 Transcript for **${channel.name}**:`,
+                            files: [attachment]
+                        });
                     }
                 } catch (error) {
-                    console.error('Error updating log message:', error);
+                    console.error('Error updating log message or creating transcript:', error);
                 }
             }
 
