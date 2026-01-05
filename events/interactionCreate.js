@@ -375,9 +375,12 @@ async function handleCloseTicket(interaction) {
                     const timestamp = new Date(msg.createdTimestamp).toUTCString();
                     transcript += `[${timestamp}] ${msg.author.tag} (${msg.author.id}):\n`;
                     
+                    // Debug logging
+                    console.log(`[Transcript] Message ID: ${msg.id}, Content: "${msg.content}", Type: ${msg.type}`);
+                    
                     let hasContent = false;
                     
-                    if (msg.content) {
+                    if (msg.content && msg.content.trim().length > 0) {
                         transcript += `${msg.content}\n`;
                         hasContent = true;
                     }
