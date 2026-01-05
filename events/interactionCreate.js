@@ -375,16 +375,38 @@ async function handleCloseTicket(interaction) {
                     const timestamp = new Date(msg.createdTimestamp).toUTCString();
                     transcript += `[${timestamp}] ${msg.author.tag} (${msg.author.id}):\n`;
                     
+                    let hasContent = false;
+                    
                     if (msg.content) {
                         transcript += `${msg.content}\n`;
+                        hasContent = true;
                     }
                     
                     if (msg.embeds.length > 0) {
-                        transcript += `[Embed: ${msg.embeds.length} embed(s)]\n`;
+                        for (const embed of msg.embeds) {
+                            transcript += `[Embed: ${embed.title || 'No title'}]\n`;
+                            if (embed.description) transcript += `  Description: ${embed.description}\n`;
+                        }
+                        hasContent = true;
                     }
                     
                     if (msg.attachments.size > 0) {
-                        transcript += `[Attachments: ${Array.from(msg.attachments.values()).map(a => a.url).join(', ')}]\n`;
+                        transcript += `[Attachments (${msg.attachments.size})]: ${Array.from(msg.attachments.values()).map(a => `${a.name} - ${a.url}`).join(', ')}\n`;
+                        hasContent = true;
+                    }
+                    
+                    if (msg.stickers && msg.stickers.size > 0) {
+                        transcript += `[Stickers: ${Array.from(msg.stickers.values()).map(s => s.name).join(', ')}]\n`;
+                        hasContent = true;
+                    }
+                    
+                    if (msg.components && msg.components.length > 0) {
+                        transcript += `[Has interactive components: buttons/menus]\n`;
+                        hasContent = true;
+                    }
+                    
+                    if (!hasContent) {
+                        transcript += `[Empty message or unsupported content type]\n`;
                     }
                     
                     transcript += '\n';
