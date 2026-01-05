@@ -75,6 +75,8 @@ module.exports = {
 
             if (staffTicketsLogChannel) {
                 try {
+                    console.log('Starting transcript creation...');
+                    
                     // Fetch all messages from the ticket channel for transcript
                     let allMessages = [];
                     let lastId;
@@ -95,6 +97,8 @@ module.exports = {
                         
                         lastId = messages.last().id;
                     }
+
+                    console.log(`Fetched ${allMessages.length} messages for transcript`);
 
                     // Sort messages by timestamp (oldest first)
                     allMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
@@ -132,7 +136,17 @@ module.exports = {
                         name: `transcript-${channel.name}-${Date.now()}.txt`
                     });
 
-                    // Fetch the original log message
+                    console.log('Transcript created, sending to log channel...');
+
+                    // Send transcript first
+                    await staffTicketsLogChannel.send({
+                        content: `📄 Transcript for **${channel.name}**:`,
+                        files: [attachment]
+                    });
+
+                    console.log('Transcript sent successfully');
+
+                    // Then update the log message
                     const logMessage = await staffTicketsLogChannel.messages.fetch(logMessageId);
                     
                     if (logMessage && logMessage.embeds.length > 0) {
@@ -152,15 +166,12 @@ module.exports = {
                                 { name: '⏰ Closed at', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
                             );
                         
-                        // Edit the log message and add transcript
                         await logMessage.edit({ embeds: [updatedEmbed] });
-                        await staffTicketsLogChannel.send({
-                            content: `📄 Transcript for **${channel.name}**:`,
-                            files: [attachment]
-                        });
+                        console.log('Log message updated');
                     }
                 } catch (error) {
                     console.error('Error updating log message or creating transcript:', error);
+                    console.error('Full error details:', error.stack);
                 }
             }
 
