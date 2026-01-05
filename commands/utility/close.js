@@ -9,8 +9,11 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+        console.log('=== CLOSE COMMAND STARTED ===');
+
         try {
             const channel = interaction.channel;
+            console.log('Channel name:', channel.name);
             
             // Check if this is a ticket channel
             if (!channel.name.startsWith('ticket-')) {
@@ -22,6 +25,7 @@ module.exports = {
 
             // Parse the channel topic to get the log message ID and user ID
             const topic = channel.topic;
+            console.log('Channel topic:', topic);
             if (!topic) {
                 await interaction.editReply({
                     content: '❌ Unable to find ticket information.'
@@ -58,6 +62,9 @@ module.exports = {
             const logMessageId = logMatch[1];
             const category = categoryMatch ? categoryMatch[1] : 'unknown';
 
+            console.log('Log message ID:', logMessageId);
+            console.log('Category:', category);
+
             // Get category emoji
             const categoryEmojis = {
                 'onboarding': '👋',
@@ -69,9 +76,11 @@ module.exports = {
             const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1);
 
             // Find the staff-tickets log channel
+            console.log('Looking for log channel:', staffTicketsLogChannelName);
             const staffTicketsLogChannel = interaction.guild.channels.cache.find(
                 ch => ch.name === staffTicketsLogChannelName && ch.type === ChannelType.GuildText
             );
+            console.log('Log channel found:', staffTicketsLogChannel ? 'YES' : 'NO');
 
             if (staffTicketsLogChannel) {
                 try {
