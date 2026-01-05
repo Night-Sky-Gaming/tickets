@@ -1,10 +1,11 @@
-const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, EmbedBuilder, PermissionFlagBits, ChannelType, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require('discord.js');
 const { staffTicketsLogChannelName } = require('../config.json');
 
 module.exports = {
 	name: Events.InteractionCreate,
 	async execute(interaction) {
 		if (interaction.isChatInputCommand()) {
+			console.log(`[InteractionCreate] Command received: ${interaction.commandName}`);
 			const command = interaction.client.commands.get(interaction.commandName);
 
 			if (!command) {
@@ -13,9 +14,11 @@ module.exports = {
 			}
 
 			try {
+				console.log(`[InteractionCreate] Executing command: ${interaction.commandName}`);
 				await command.execute(interaction);
+				console.log(`[InteractionCreate] Command completed: ${interaction.commandName}`);
 			} catch (error) {
-				console.error(error);
+				console.error(`[InteractionCreate] Error in ${interaction.commandName}:`, error);
 				if (interaction.replied || interaction.deferred) {
 					await interaction.followUp({
 						content: 'There was an error while executing this command!',
@@ -332,7 +335,78 @@ async function handleCloseTicket(interaction) {
 
         if (staffTicketsLogChannel) {
             try {
-                // Fetch the original log message
+                console.log('[Close Ticket] Starting transcript creation...');
+                
+                // Fetch all messages from the ticket channel for transcript
+                let allMessages = [];
+                let lastId;
+
+                // Fetch messages in batches of 100 (Discord API limit)
+                while (true) {
+                    const options = { limit: 100 };
+                    if (lastId) {
+                        options.before = lastId;
+                    }
+
+                    const messages = await channel.messages.fetch(options);
+                    allMessages.push(...messages.values());
+                    
+                    if (messages.size !== 100) {
+                        break;
+                    }
+                    
+                    lastId = messages.last().id;
+                }
+
+                console.log(`[Close Ticket] Fetched ${allMessages.length} messages for transcript`);
+
+                // Sort messages by timestamp (oldest first)
+                allMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+                // Create transcript text
+                let transcript = `Ticket Transcript - ${channel.name}\n`;
+                transcript += `Category: ${categoryDisplay}\n`;
+                transcript += `Closed by: ${interaction.user.tag} (${interaction.user.id})\n`;
+                transcript += `Closed at: ${new Date().toUTCString()}\n`;
+                transcript += `Total Messages: ${allMessages.length}\n`;
+                transcript += `${'='.repeat(80)}\n\n`;
+
+                for (const msg of allMessages) {
+                    const timestamp = new Date(msg.createdTimestamp).toUTCString();
+                    transcript += `[${timestamp}] ${msg.author.tag} (${msg.author.id}):\n`;
+                    
+                    if (msg.content) {
+                        transcript += `${msg.content}\n`;
+                    }
+                    
+                    if (msg.embeds.length > 0) {
+                        transcript += `[Embed: ${msg.embeds.length} embed(s)]\n`;
+                    }
+                    
+                    if (msg.attachments.size > 0) {
+                        transcript += `[Attachments: ${Array.from(msg.attachments.values()).map(a => a.url).join(', ')}]\n`;
+                    }
+                    
+                    transcript += '\n';
+                }
+
+                // Create attachment
+                const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+                const attachment = new AttachmentBuilder(transcriptBuffer, {
+                    name: `transcript-${channel.name}-${Date.now()}.txt`
+                });
+
+                console.log('[Close Ticket] Transcript created, sending to log channel...');
+
+                // Send transcript first
+                await staffTicketsLogChannel.send({
+                    content: `📄 Transcript for **${channel.name}**:`,
+                    files: [attachment]
+                });
+
+                console.log('[Close Ticket] Transcript sent successfully');
+
+                // Then update the log message
                 const logMessage = await staffTicketsLogChannel.messages.fetch(logMessageId);
                 
                 if (logMessage && logMessage.embeds.length > 0) {
@@ -352,11 +426,11 @@ async function handleCloseTicket(interaction) {
                             { name: '⏰ Closed at', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
                         );
                     
-                    // Edit the log message
                     await logMessage.edit({ embeds: [updatedEmbed] });
+                    console.log('[Close Ticket] Log message updated');
                 }
             } catch (error) {
-                console.error('Error updating log message:', error);
+                console.error('Error updating log message or creating transcript:', error);
             }
         }
 
